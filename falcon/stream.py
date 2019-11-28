@@ -1,9 +1,11 @@
+import logging
 import asyncio
 import aiohttp
 import requests
-import sys
 import json
-from . import OAuthBasedApi
+from .apibase import OAuthBasedApi
+
+logger = logging.getLogger(__name__)
 
 class DiscoverApi(OAuthBasedApi):
   METHOD = 'GET'
@@ -33,14 +35,14 @@ class EventStream(object):
       if self.refresh:
         res = self.refresh()
         if res.status_code != 200:
-          print("failed to refresh streaming session")
-          sys.exit(1)
+          logger.error("Failed to refresh an active stream. " + res.json()['errors'][0]['message'])
+          raise RuntimeError()
       else:
         discover = DiscoverApi(self.client_id, self.client_secret)
         res = discover(appId=self.app_id)
         if res.status_code != 200:
-          print("failed to discover stream to subscribe")
-          sys.exit(1)
+          logger.error("Failed to discover a stream to subscribe. " + res.json()['errors'][0]['message'])
+          raise RuntimeError()
         resources = res.json()['resources'][0]
         self.feed_url = resources['dataFeedURL']
         self.token = resources['sessionToken']['token']

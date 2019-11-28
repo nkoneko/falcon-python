@@ -2,9 +2,9 @@ from setuptools import setup
 
 setup(
   name='falcon-python',
-  version='0.1.0',
+  version='0.1.1',
   author='Nekomura, Koneko',
   author_email='ogawanne@gmail.com',
   packages=['falcon'],
-  install_requres=['aiohttp', 'requests']
+  install_requires=['aiohttp', 'requests']
 )

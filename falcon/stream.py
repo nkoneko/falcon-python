@@ -33,20 +33,27 @@ class EventStream(object):
   async def _refresh(self, event):
     while True:
       if self.refresh:
+        logger.info('Tries to refresh the active stream')
         res = self.refresh()
         if res.status_code != 200:
           logger.error("Failed to refresh an active stream. " + res.json()['errors'][0]['message'])
           raise RuntimeError()
+        logger.info('Refresh finished')
       else:
+        logger.info('Discover a stream to subscribe')
         discover = DiscoverApi(self.client_id, self.client_secret)
         res = discover(appId=self.app_id)
         if res.status_code != 200:
           logger.error("Failed to discover a stream to subscribe. " + res.json()['errors'][0]['message'])
           raise RuntimeError()
+        logger.info('Found a stream')
         resources = res.json()['resources'][0]
         self.feed_url = resources['dataFeedURL']
+        logger.debug(f'Feed URL: {self.feed_url}')
         self.token = resources['sessionToken']['token']
+        logger.debug(f'Token: {self.token}')
         refresh_url = resources['refreshActiveSessionURL']
+        logger.debug(f'Refresh URL: {refresh_url}')
         self.refresh = RefreshApi(self.client_id, self.client_secret, refresh_url)
         event.set()
       await asyncio.sleep(25 * 60)
@@ -63,5 +70,6 @@ class EventStream(object):
             event = json.loads(line)
             if event['metadata']['offset'] < offset:
               continue
+            logger.debug('offset: ' + str(event['metadata']['offset']))
             yield event
     await refresh

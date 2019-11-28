@@ -23,8 +23,11 @@ class OAuthBasedApi(object):
   def _get_token(self):
     now = datetime.datetime.now()
     if not OAuthBasedApi._token or OAuthBasedApi._token_exp < (now + datetime.timedelta(seconds=180)):
+      logger.info('No valid OAuth token was found, and will be generated.')
       max_retries = 3
       for _ in range(max_retries):
+        logger.info(f'POST {OAuthBasedApi.BASE_URL}/oauth2/token')
+        logger.debug(f'OAuth token was requested using this credential ({self.client_id}:{self.client_secret})')
         res = requests.post(f'{OAuthBasedApi.BASE_URL}/oauth2/token', data={
           'client_id': self.client_id,
           'client_secret': self.client_secret
@@ -38,10 +41,12 @@ class OAuthBasedApi(object):
         if res.status_code != 201:
           logger.error('Cannot authenticate.' + res.json()['errors'][0]['message'])
           raise RuntimeError()
+        logger.info('OAuth token is successfully generated.')
         j = res.json()
         token = j['access_token']
         OAuthBasedApi._token_exp = now + datetime.timedelta(seconds=j['expires_in'])
         OAuthBasedApi._token = token
+        logger.debug(f'OAuth token is "{token}"')
         break
       if not token:
         logger.error('Couldn\'t get a token')
@@ -53,20 +58,26 @@ class OAuthBasedApi(object):
     url = self.url
     token = self._get_token()
     auth_header = {'Authorization': f'Bearer {token}'}
+    logger.info(f'{method} {url}')
     retries = 3
     while retries > 0:
       if method == 'GET':
         query = '?' + "&".join(f'{key}={value}' for key, value in params.items())
         url = url + query
+        logger.debug(f'Detailed request: {method} {url}')
         res = requests.get(url, headers=auth_header)
       elif method == 'POST':
+        logger.debug(f'Params: {params}')
         res = requests.post(url, headers=auth_header, data=json.dumps(params))
       elif method == 'PUT':
+        logger.debug(f'Params: {params}')
         res = requests.put(url, headers=auth_header, data=json.dumps(params))
       elif method == 'DELETE':
+        logger.debug(f'Params: {params}')
         res = requests.delete(url, headers=auth_header, data=json.dumps(params))
       else:
         raise NotImplementedError()
+      logger.debug(f'response status code: {res.status_code}')
       if res.status_code == 429:
         logger.warning('Rate Limit Exceeded. Retries will be performed in 3 seconds.')
         time.sleep(3)

@@ -22,7 +22,6 @@ class OAuthBasedApi(object):
 
   def _get_token(self):
     now = datetime.datetime.now()
-    token = None
     if not OAuthBasedApi._token or OAuthBasedApi._token_exp < (now + datetime.timedelta(seconds=180)):
       max_retries = 3
       for _ in range(max_retries):
@@ -44,9 +43,9 @@ class OAuthBasedApi(object):
         OAuthBasedApi._token_exp = now + datetime.timedelta(seconds=j['expires_in'])
         OAuthBasedApi._token = token
         break
-    if not token:
-      logger.error('Couldn\'t get a token')
-      raise RuntimeError()
+      if not token:
+        logger.error('Couldn\'t get a token')
+        raise RuntimeError()
     return OAuthBasedApi._token
 
   def __call__(self, **params):

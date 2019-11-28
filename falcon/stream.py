@@ -22,7 +22,7 @@ class RefreshApi(OAuthBasedApi):
 class EventStream(object):
   def __init__(self, app_id):
     self.app_id = app_id
-    self.refresh_url = None
+    self.refresh = None
 
   def set_credential(self, client_id, client_secret):
     self.client_id = client_id
@@ -30,35 +30,23 @@ class EventStream(object):
 
   async def _refresh(self, event):
     while True:
-      res = requests.post('https://api.crowdstrike.com/oauth2/token', data={
-        'client_id': self.client_id,
-        'client_secret': self.client_secret
-      })
-      if res.status_code != 201:
-        await asyncio.sleep(5)
-        continue
-      bearer_token = res.json()['access_token']
-      if not self.refresh_url:
-        res = requests.get(f'https://api.crowdstrike.com/sensors/entities/datafeed/v2?appId={self.app_id}', headers={
-          'Authorization': f'Bearer {bearer_token}'
-        })
+      if self.refresh:
+        res = self.refresh()
         if res.status_code != 200:
-          await asyncio.sleep(5)
-          continue
-        resjson = res.json()['resources'][0]
-        self.feed_url = resjson['dataFeedURL']
-        self.token = resjson['sessionToken']['token']
-        self.refresh_url = resjson['refreshActiveSessionURL']
-      else:
-        res = requests.post(self.refresh_url, headers={
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': f'Bearer {bearer_token}'
-        })
-        if res.status_code != 200:
-          print("failed to refresh streaming session.")
+          print("failed to refresh streaming session")
           sys.exit(1)
-      event.set()
+      else:
+        discover = DiscoverApi(self.client_id, self.client_secret)
+        res = discover(appId=self.app_id)
+        if res.status_code != 200:
+          print("failed to discover stream to subscribe")
+          sys.exit(1)
+        resources = res.json()['resources'][0]
+        self.feed_url = resources['dataFeedURL']
+        self.token = resources['sessionToken']['token']
+        refresh_url = resources['refreshActiveSessionURL']
+        self.refresh = RefreshApi(self.client_id, self.client_secret, refresh_url)
+        event.set()
       await asyncio.sleep(25 * 60)
 
   async def retrieve_event(self, offset=0):

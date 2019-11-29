@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 class OAuthBasedApi(object):
   BASE_URL = 'https://api.crowdstrike.com'
-  _token_exp = datetime.datetime(1970, 1, 1)
   _token = None
+  _expiration = datetime.datetime(1970, 1, 1)
 
   def __init__(self, client_id, client_secret):
     self.client_id = client_id
@@ -21,10 +21,12 @@ class OAuthBasedApi(object):
     return f'{OAuthBasedApi.BASE_URL}/{path}'
 
   def _get_token(self):
+    max_retries = 3
     now = datetime.datetime.now()
-    if not OAuthBasedApi._token or OAuthBasedApi._token_exp < (now + datetime.timedelta(seconds=180)):
-      logger.info('No valid OAuth token was found, and will be generated.')
-      max_retries = 3
+    logger.debug("is token null? => " + str(not OAuthBasedApi._token))
+    logger.debug("is token expired? => " +str(OAuthBasedApi._expiration < (now + datetime.timedelta(minutes=10))))
+    if (not OAuthBasedApi._token) or (OAuthBasedApi._expiration < (now + datetime.timedelta(minutes=10))):
+      token = None
       for _ in range(max_retries):
         logger.info(f'POST {OAuthBasedApi.BASE_URL}/oauth2/token')
         logger.debug(f'OAuth token was requested using this credential ({self.client_id}:{self.client_secret})')
@@ -44,9 +46,9 @@ class OAuthBasedApi(object):
         logger.info('OAuth token is successfully generated.')
         j = res.json()
         token = j['access_token']
-        OAuthBasedApi._token_exp = now + datetime.timedelta(seconds=j['expires_in'])
-        OAuthBasedApi._token = token
         logger.debug(f'OAuth token is "{token}"')
+        OAuthBasedApi._expiration = now + datetime.timedelta(seconds=j['expires_in'])
+        OAuthBasedApi._token = token
         break
       if not token:
         logger.error('Couldn\'t get a token')
@@ -68,9 +70,11 @@ class OAuthBasedApi(object):
         res = requests.get(url, headers=auth_header)
       elif method == 'POST':
         logger.debug(f'Params: {params}')
+        auth_header['Content-Type'] = 'application/json'
         res = requests.post(url, headers=auth_header, data=json.dumps(params))
       elif method == 'PUT':
         logger.debug(f'Params: {params}')
+        auth_header['Content-Type'] = 'application/json'
         res = requests.put(url, headers=auth_header, data=json.dumps(params))
       elif method == 'DELETE':
         logger.debug(f'Params: {params}')

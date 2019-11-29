@@ -57,6 +57,7 @@ class EventStream(object):
         self.refresh = RefreshApi(self.client_id, self.client_secret, refresh_url)
         event.set()
       await asyncio.sleep(25 * 60)
+      event.clear()
 
   async def retrieve_event(self, offset=0):
     refreshed = asyncio.Event()

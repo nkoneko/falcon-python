@@ -86,6 +86,8 @@ def _slack_payload_a(event):
       text = text + ' IP Address: ' + e['UserIp']
       text = text + ', Timestamp: ' + datetime.fromtimestamp(e['UTCTimestamp'], JST).strftime('%Y-%m-%d %H:%M:%S %z')
       return { 'text': text }
+  if e['OperationName'] == 'streamStarted' or e['OperationName'] == 'streamStopped':
+    return None
   title = 'Authentication Event'
   fields = [
     { 'title': 'OperationName', 'value': e['OperationName'], 'short': True },
@@ -214,6 +216,7 @@ if __name__ == '__main__':
     handlers.append(logging.StreamHandler())
   logging.basicConfig(
     level=logging.DEBUG if args.debug else logging.INFO,
+    format="%(asctime)s - %(name)s [%(levelname)s] : %(message)s",
     handlers=handlers
   )
 

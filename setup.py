@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
   name='falcon-python',
-  version='0.1.1',
+  version='0.2.0',
   author='Nekomura, Koneko',
   author_email='ogawanne@gmail.com',
   packages=['falcon'],

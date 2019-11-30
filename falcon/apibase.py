@@ -55,8 +55,27 @@ class OAuthBasedApi(object):
         raise RuntimeError()
     return OAuthBasedApi._token
 
+  def get(self, **params):
+    params['method'] = 'GET'
+    return self.__call__(**params)
+
+  def post(self, **params):
+    params['method'] = 'POST'
+    return self.__call__(**params)
+
+  def patch(self, **params):
+    params['method'] = 'PATCH'
+    return self.__call__(**params)
+
+  def delete(self, **params):
+    params['method'] = 'DELETE'
+    return self.__call__(**params)
+
   def __call__(self, **params):
-    method = self.__class__.METHOD
+    if 'method' in params.keys():
+      method = params['method']
+    else:
+      method = self.__class__.METHOD
     url = self.url
     token = self._get_token()
     auth_header = {'Authorization': f'Bearer {token}'}
@@ -64,7 +83,9 @@ class OAuthBasedApi(object):
     retries = 3
     while retries > 0:
       if method == 'GET':
+        logger.debug('items() -> ' + str(params.items()))
         query = '?' + "&".join(f'{key}={value}' for key, value in params.items())
+        logger.debug('Query string => ' + query)
         url = url + query
         logger.debug(f'Detailed request: {method} {url}')
         res = requests.get(url, headers=auth_header)

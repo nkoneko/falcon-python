@@ -25,7 +25,7 @@ Usage
 This library is under development, and so far it provides with only low-level implementation.
 No API doc is available.
 
-=== Detects API
+### Detects API
 
 ```python
 from falcon.detects import DetectsQueryAPI, DetectsSummaryAPI
@@ -43,7 +43,7 @@ def get_detection_summaries(q, offset, limit):
       yield summary.get(ids=r)
 ```
 
-=== Streaming API
+### Streaming API
 
 ```python
 from falcon.stream import EventStream

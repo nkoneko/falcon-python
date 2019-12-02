@@ -4,9 +4,9 @@ Python client library for accessing CrowdStrike Falcon APIs
 Dependencies
 -------------
 
-Python >= 3.7
-aiohttp
-requests
+* Python >= 3.7
+* aiohttp
+* requests
 
 Installation
 -------------

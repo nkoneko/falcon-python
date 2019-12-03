@@ -29,31 +29,37 @@ No API doc is available.
 
 ```python
 from falcon.detects import DetectsQueryAPI, DetectsSummaryAPI
+from falcon import oauth
 
-query = DetectsQueryAPI(CLIENT_ID, CLIENT_SECRET)
-summary = DetectsSummaryAPI(CLIENT_ID, CLIENT_SECRET)
+query = DetectsQueryAPI()
+summary = DetectsSummaryAPI()
 
-def get_detection_summaries(q, offset, limit):
-  resources = query.get(q=q, offset=offset, limit=limit)
-  for r in resources:
-    yield summary.get(ids=r)
-  while query.has_next():
-    resources = query.fetch_next()
+async def get_detection_summaries(q, offset, limit):
+  async with oauth.authenticate(CLIENT_ID, CLIENT_SECRET) as token:
+    await query.set_credential(token)
+    await summary.set_credential(token)
+    resources = query.get(q=q, offset=offset, limit=limit)
     for r in resources:
       yield summary.get(ids=r)
+    while query.has_next():
+      resources = query.fetch_next()
+      for r in resources:
+        yield summary.get(ids=r)
 ```
 
 ### Streaming API
 
 ```python
 from falcon.stream import EventStream
+from falcon import oauth
 
 stream = EventStream(APP_ID)
-stream.set_credential(CLIENT_ID, CLIENT_SECRET)
 
 async def print_events():
-  async for event in stream.retrieve_event(offset=OFFSET):
-    print(event)
+  async with oauth.authenticate(CLIENT_ID, CLIENT_SECRET) as token:
+    stream.set_credential(token)
+    async for event in stream.retrieve_event(offset=OFFSET):
+      print(event)
 ```
 
 Examples

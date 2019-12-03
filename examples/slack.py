@@ -6,6 +6,7 @@ import json
 import sys
 from datetime import datetime, timedelta, timezone
 from falcon.stream import EventStream
+from falcon import oauth
 
 JST = timezone(timedelta(hours=9))
 logger = logging.getLogger(__name__)
@@ -157,20 +158,21 @@ async def main(app_id, client_id, client_secret, offsetfile, webhook):
       requests.post(webhook, data=json.dumps(payload), headers={'Content-Type': 'application/json'})
   def _logger(event):
     logger.info(event)
-  queue = asyncio.Queue()
-  stream = EventStream(app_id)
-  stream.set_credential(client_id, client_secret)
-  notifier = _notify_slack if webhook else _logger
+  async with oauth.authenticate(client_id, client_secret) as token:
+    queue = asyncio.Queue()
+    stream = EventStream(app_id)
+    stream.set_credential(token)
+    notifier = _notify_slack if webhook else _logger
 
-  offset = 0
-  if offsetfile:
-    with open(offsetfile, 'r') as f:
-      offset = int(f.read().strip())
+    offset = 0
+    if offsetfile:
+      with open(offsetfile, 'r') as f:
+        offset = int(f.read().strip())
 
-  await asyncio.gather(
-    streaming(stream, queue, offset),
-    consume(queue, offsetfile, notifier)
-  )
+    await asyncio.gather(
+      streaming(stream, queue, offset),
+      consume(queue, offsetfile, notifier)
+    )
 
 async def streaming(eventstream, queue, offset):
   async for event in eventstream.retrieve_event(offset=offset):

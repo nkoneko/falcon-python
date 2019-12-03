@@ -13,8 +13,8 @@ class DiscoverApi(OAuthBasedApi):
 
 class RefreshApi(OAuthBasedApi):
   METHOD = 'POST'
-  def __init__(self, client_id, client_secret, url):
-    super().__init__(client_id, client_secret)
+
+  def __init__(self, url):
     self._url = url
 
   @property
@@ -26,9 +26,8 @@ class EventStream(object):
     self.app_id = app_id
     self.refresh = None
 
-  def set_credential(self, client_id, client_secret):
-    self.client_id = client_id
-    self.client_secret = client_secret
+  def set_credential(self, autorefreshtoken):
+    self.autorefreshtoken = autorefreshtoken
 
   async def _refresh(self, event):
     while True:
@@ -36,25 +35,32 @@ class EventStream(object):
         logger.info('Tries to refresh the active stream')
         res = self.refresh()
         if res.status_code != 200:
-          logger.error("Failed to refresh an active stream. " + res.json()['errors'][0]['message'])
+          body = res.json()
+          logger.error("Failed to refresh an active stream. " + body['errors'][0]['message'])
           raise RuntimeError()
         logger.info('Refresh finished')
       else:
         logger.info('Discover a stream to subscribe')
-        discover = DiscoverApi(self.client_id, self.client_secret)
+        discover = DiscoverApi()
+        await discover.set_credential(self.autorefreshtoken)
         res = discover(appId=self.app_id)
         if res.status_code != 200:
-          logger.error("Failed to discover a stream to subscribe. " + res.json()['errors'][0]['message'])
+          body = res.json()
+          logger.error("Failed to discover a stream to subscribe. " + body['errors'][0]['message'])
           raise RuntimeError()
         logger.info('Found a stream')
-        resources = res.json()['resources'][0]
+        body = res.json()
+        logger.debug(body)
+        resources = body['resources'][0]
         self.feed_url = resources['dataFeedURL']
         logger.debug(f'Feed URL: {self.feed_url}')
         self.token = resources['sessionToken']['token']
         logger.debug(f'Token: {self.token}')
         refresh_url = resources['refreshActiveSessionURL']
         logger.debug(f'Refresh URL: {refresh_url}')
-        self.refresh = RefreshApi(self.client_id, self.client_secret, refresh_url)
+        refresh_api = RefreshApi(refresh_url)
+        await refresh_api.set_credential(self.autorefreshtoken)
+        self.refresh = refresh_api
         event.set()
       await asyncio.sleep(25 * 60)
       event.clear()
